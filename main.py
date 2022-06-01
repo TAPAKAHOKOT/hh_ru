@@ -5,14 +5,15 @@ base_url = 'https://api.hh.ru'
 get_vacancies_url = base_url + '/vacancies'
 
 
-
+response_text = 'PHP'
+print(f'response text=<{response_text}>')
 def get_response_params(page: int = 0) -> dict:
 	return {
-		'text': 'PHP',
+		'text': response_text,
 		'per_page': 100,
-		'page': page
+		'page': page,
+		'only_with_salary': True
 	}
-
 def get_max_page() -> int:
 	response = r.get(get_vacancies_url, params=get_response_params())
 	data = response.json()
@@ -55,11 +56,11 @@ def count_salary():
 			sr_to += item['salary']['from']
 
 	items_count = len(items)
-	print(f'{round(sr_from/items_count):_} - {round(sr_to/items_count):_}')
+	print(f'middle salary=<{round(sr_from/items_count):_} - {round(sr_to/items_count):_}>')
 
 
 step = 5
 for k in range(0, max_page, step):
 	send_response(k, k + step)
-print(len(items))
+print(f'items founded=<{len(items)}>')
 count_salary()
