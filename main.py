@@ -1,57 +1,65 @@
+import grequests
 import requests as r
 
 base_url = 'https://api.hh.ru'
 get_vacancies_url = base_url + '/vacancies'
 
-response_params = {
-	'text': 'PHP',
-	'per_page': 100,
-	'page': 0
-}
 
-response_data = {}
-max_page = None
-is_first_response = True
-while True:
-	response = r.get(get_vacancies_url, params=response_params)
+
+def get_response_params(page: int = 0) -> dict:
+	return {
+		'text': 'PHP',
+		'per_page': 100,
+		'page': page
+	}
+
+def get_max_page() -> int:
+	response = r.get(get_vacancies_url, params=get_response_params())
 	data = response.json()
 
-	if is_first_response:
-		is_first_response = False
-		max_page = data['pages']
+	return data['pages']
 
-	items = []
-	for item in data['items']:
-		if item['salary'] is None:
-			continue
-		items.append({
-			'name': item['name'],
-			'salary': {
-				'from': item['salary']['from'],
-				'to': item['salary']['to']
-			}
-		})
+max_page = get_max_page()
+items = []
 
-	response_data[response_params['page']] = data
+def save_response_data(results: list):
+	for result in results:
+		data = result.json()
+		for item in data['items']:
+			if item['salary'] is None:
+				continue
+			items.append({
+				'name': item['name'],
+				'salary': {
+					'from': item['salary']['from'],
+					'to': item['salary']['to']
+				}
+			})
 
-	response_params['page'] += 1
-	print(response_params['page'], '/', max_page)
-	if response_params['page'] >= max_page:
-		break
+def send_response(start_page: int,  end_page: int):
+	response = (grequests.get(get_vacancies_url, data=get_response_params(page)) for page in range(start_page, end_page))
+	results = grequests.map(response)
+	save_response_data(results)
 
-print(len(response_data))
+def count_salary():
+	sr_from = 0
+	sr_to = 0
+	for item in items:
+		if item['salary']['from'] is not None:
+			sr_from += item['salary']['from']
 
-sr_from = 0
-sr_to = 0
-for item in items:
-	if item['salary']['from'] is not None:
-		sr_from += item['salary']['from']
+		if item['salary']['to'] is not None:
+			sr_to += item['salary']['to']
 
-	if item['salary']['to'] is not None:
-		sr_to += item['salary']['to']
+		if item['salary']['from'] is not None and item['salary']['to'] is None:
+			sr_to += item['salary']['from']
 
-	if item['salary']['from'] is not None and item['salary']['to'] is None:
-		sr_to += item['salary']['from']
+	items_count = len(items)
+	print(f'{round(sr_from/items_count):_} - {round(sr_to/items_count):_}')
 
-items_count = len(items)
-print(f'{round(sr_from/items_count):_} - {round(sr_to/items_count):_}')
+
+step = 5
+for k in range(0, max_page, step):
+	send_response(k, k + step)
+print(len(items))
+count_salary()
